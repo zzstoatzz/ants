@@ -2,6 +2,15 @@
 
 ![Ants](./assets/hero.png)
 
+## tl;dr
+
+```
+gh repo clone zzstoatzz/ants
+cd ants
+make setup
+make run
+```
+
 ## Introduction
 
 This project is an **Ant Colony Simulation** that models the behavior of ants within a 2D grid environment. The simulation incorporates various aspects of real-world ant colonies, including foraging for food, pheromone communication, colony expansion, and environmental interactions. Through simple rules and interactions, the ants exhibit complex, emergent behaviors that can be observed and analyzed.
