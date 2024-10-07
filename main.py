@@ -14,7 +14,7 @@ def animate_simulation(config: SimulationConfig | None = None) -> dict[str, Any]
         task(simulation.animate)()
     except KeyboardInterrupt:
         get_run_logger().info("Simulation interrupted by Ctrl+C")
-    return simulation.get_stats()
+    return task(simulation.get_stats)()
 
 
 if __name__ == "__main__":
