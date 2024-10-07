@@ -4,10 +4,11 @@ from typing import Any, Self
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
+from pydantic import BaseModel, ConfigDict, Field
+
 from config import SimulationConfig
 from environment import Environment
 from models import Ant, Colony, Position, Queen
-from pydantic import BaseModel, ConfigDict, Field
 
 
 class Simulation(BaseModel):
@@ -26,20 +27,25 @@ class Simulation(BaseModel):
         environment_type: type | None = None,
     ) -> Self:
         config = config or SimulationConfig()
+        grid_width, grid_height = config.grid_size
         queen_position = (
-            random.randint(config.grid_size[0] // 4, 3 * config.grid_size[0] // 4),
-            random.randint(config.grid_size[1] // 4, 3 * config.grid_size[1] // 4),
+            random.randint(grid_width // 4, 3 * grid_width // 4),
+            random.randint(grid_height // 4, 3 * grid_height // 4),
         )
         environment = (environment_type or Environment)(config)
 
         ants = set()
         ant_paths = {}
         for i in range(config.num_ants):
-            ant_position = (
-                random.randint(0, config.grid_size[0] - 1),
-                random.randint(0, config.grid_size[1] - 1),
+            ant = Ant(
+                position=(
+                    random.randint(0, grid_width - 1),
+                    random.randint(0, grid_height - 1),
+                ),
+                id=i,
+                lifespan=config.ant.initial_lifespan,
+                carrying_capacity=config.ant.carrying_capacity,
             )
-            ant = Ant(position=ant_position, id=i)
             ants.add(ant)
             ant_paths[ant.id] = []
 
@@ -67,18 +73,23 @@ class Simulation(BaseModel):
         self.environment.update(self.current_time)
 
         for ant in list(self.colony.ants):
-            ant.update(self.environment, self.colony, self.config, self.current_time)
+            ant.update(
+                self.environment,
+                self.colony,
+                self.config,
+                self.current_time,
+                time_delta,
+            )
             if ant.id not in self.ant_paths:
-                self.ant_paths[ant.id] = []  # Initialize the path for new ants
+                self.ant_paths[ant.id] = []
             self.ant_paths[ant.id].append(ant.position)
 
-        # Update colony (hatching eggs, etc.)
         self.colony.update(self.config, time_delta)
 
-        # Initialize paths for any new ants added during colony.update
-        for ant in self.colony.ants:
-            if ant.id not in self.ant_paths:
-                self.ant_paths[ant.id] = [ant.position]
+        # Remove paths of dead ants
+        dead_ant_ids = set(self.ant_paths.keys()) - {ant.id for ant in self.colony.ants}
+        for ant_id in dead_ant_ids:
+            del self.ant_paths[ant_id]
 
     def get_stats(self) -> dict[str, Any]:
         return {
@@ -95,8 +106,9 @@ class Simulation(BaseModel):
         plot_elements = self._initialize_plot_elements(ax)
 
         def init():
-            ax.set_xlim(-0.5, self.config.grid_size[0] + 0.5)
-            ax.set_ylim(-0.5, self.config.grid_size[1] + 0.5)
+            grid_width, grid_height = self.config.grid_size
+            ax.set_xlim(-0.5, grid_width - 0.5)
+            ax.set_ylim(-0.5, grid_height - 0.5)
             ax.set_xticks([])
             ax.set_yticks([])
             ax.set_xticklabels([])
@@ -233,24 +245,62 @@ class Simulation(BaseModel):
             annotation.set_visible(True)
 
         # Update pheromone grid
-        pheromone_grid = self.environment.get_pheromone_grid().T  # (height, width)
-        # Create an RGBA image
-        rgba_image = np.zeros((pheromone_grid.shape[0], pheromone_grid.shape[1], 4))
-        rgba_image[:, :, 0] = 0.5  # Red channel
-        rgba_image[:, :, 1] = 0.7  # Green channel
-        rgba_image[:, :, 2] = 1.0  # Blue channel
-        max_opacity = self.config.pheromone_max_opacity
-        normalized_pheromone = pheromone_grid / self.config.pheromone_initial_intensity
-        rgba_image[:, :, 3] = np.clip(
-            normalized_pheromone * max_opacity, 0, max_opacity
-        )
-        elements["pheromone_im"].set_data(rgba_image)
+        pheromone_grid = self.get_combined_pheromone_grid()
+        elements["pheromone_im"].set_data(pheromone_grid)
 
         # Update title
         ax.set_title(
             f"Time: {self.current_time:.1f}s | Ants: {len(self.colony.ants)} | Eggs Waiting: {self.colony.eggs}",
             fontsize=12,
         )
+
+    def get_combined_pheromone_grid(self) -> np.ndarray:
+        grid_shape = self.environment.grid.shape
+        pheromone_layers = self.environment.grid[:, :, 1:].copy()
+        pheromone_layers = pheromone_layers.transpose(
+            (1, 0, 2)
+        )  # Transpose for display
+
+        rgba_image = np.zeros((grid_shape[1], grid_shape[0], 4), dtype=np.float32)
+
+        max_intensity = self.config.pheromone_initial_intensity
+        max_opacity = self.config.pheromone_max_opacity
+
+        # Regular pheromone (blue channel)
+        regular_pheromone = (
+            pheromone_layers[:, :, 0] if pheromone_layers.shape[2] > 0 else 0
+        )
+        # Food pheromone (green channel)
+        food_pheromone = (
+            pheromone_layers[:, :, 1] if pheromone_layers.shape[2] > 1 else 0
+        )
+        # Rich pheromone (purple: red + blue channels)
+        rich_pheromone = (
+            pheromone_layers[:, :, 2] if pheromone_layers.shape[2] > 2 else 0
+        )
+
+        # Normalize and limit opacity
+        regular_opacity = np.clip(
+            regular_pheromone / max_intensity * max_opacity, 0, max_opacity
+        )
+        food_opacity = np.clip(
+            food_pheromone / max_intensity * max_opacity, 0, max_opacity
+        )
+        rich_opacity = np.clip(
+            rich_pheromone / max_intensity * max_opacity, 0, max_opacity
+        )
+
+        # Combine pheromones into RGBA channels
+        rgba_image[:, :, 2] += regular_opacity  # Blue channel
+        rgba_image[:, :, 1] += food_opacity  # Green channel
+        rgba_image[:, :, 0] += rich_opacity  # Red channel
+
+        # Alpha channel: maximum of all pheromone opacities
+        rgba_image[:, :, 3] = np.maximum.reduce(
+            [regular_opacity, food_opacity, rich_opacity]
+        )
+
+        return rgba_image
 
     def _get_artists(self, elements):
         return (

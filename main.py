@@ -1,5 +1,6 @@
 from typing import Any
-from prefect import flow
+
+from prefect import flow, task
 from prefect.logging import get_run_logger
 
 from config import SimulationConfig
@@ -10,7 +11,7 @@ from simulation import Simulation
 def animate_simulation(config: SimulationConfig | None = None) -> dict[str, Any]:
     simulation = Simulation.from_config_or_default(config)
     try:
-        simulation.animate()
+        task(simulation.animate)()
     except KeyboardInterrupt:
         get_run_logger().info("Simulation interrupted by Ctrl+C")
     return simulation.get_stats()
