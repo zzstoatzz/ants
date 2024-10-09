@@ -7,7 +7,6 @@
 ```
 gh repo clone zzstoatzz/ants
 cd ants
-make setup
 make run
 ```
 

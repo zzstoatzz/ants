@@ -2,12 +2,13 @@
 
 init:
 	uv venv --python 3.12
+	uv pip install -r requirements.txt
 
 setup: init
-	uv pip install ants_rs
+	uv pip install ./ants_rs
 
 dev: init
-	uv pip install ants_rs
+	uv pip install ./ants_rs
 
 run: setup
 	uv run python main.py
