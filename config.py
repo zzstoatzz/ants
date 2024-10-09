@@ -7,10 +7,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class AnimationConfig(BaseSettings):
     figsize: tuple[int, int] = (8, 6)
     step_interval: PositiveFloat = 0.1  # in seconds
+    fps: PositiveInt = 30
 
 
 class FoodAllocationConfig(BaseSettings):
-    spawn_chance: PositiveFloat = 0.2
+    spawn_chance: PositiveFloat = 0.1
     spawn_baseline: PositiveInt = 3
     spawn_variance: PositiveInt = 2
     value_baseline: PositiveFloat = 5.0
@@ -19,7 +20,7 @@ class FoodAllocationConfig(BaseSettings):
 
 class AntConfig(BaseSettings):
     carrying_capacity: PositiveFloat = 10.0
-    initial_lifespan: PositiveFloat = 100.0
+    initial_lifespan: PositiveFloat = 1000.0
     lifespan_extension_on_contribution: PositiveFloat = 20.0
 
 
@@ -28,7 +29,7 @@ class SimulationConfig(BaseSettings):
 
     grid_size: tuple[PositiveInt, PositiveInt] = (200, 200)
     num_ants: PositiveInt = 100
-    simulation_duration: PositiveFloat = 1000.0  # in seconds
+    simulation_duration: PositiveFloat = 60.0  # in seconds
 
     food: FoodAllocationConfig = Field(default_factory=FoodAllocationConfig)
     ant: AntConfig = Field(default_factory=AntConfig)

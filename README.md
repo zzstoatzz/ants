@@ -1,6 +1,6 @@
 # Ant Colony Simulation
 
-![Ants](./assets/hero.png)
+![Ants](./assets/animation.gif)
 
 ## tl;dr
 
@@ -10,6 +10,10 @@ cd ants
 make setup
 make run
 ```
+
+> [!IMPORTANT]
+> I might try and port the core of this simulation to Rust to see if it can run faster.
+> The rest here is just AI yapping.
 
 ## Introduction
 

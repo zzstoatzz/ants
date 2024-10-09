@@ -8,10 +8,18 @@ from simulation import Simulation
 
 
 @flow(log_prints=True)
-def animate_simulation(config: SimulationConfig | None = None) -> dict[str, Any]:
+def animate_simulation(
+    config: SimulationConfig | None = None, save_animation: bool = False
+) -> dict[str, Any]:
     simulation = Simulation.from_config_or_default(config)
     try:
-        task(simulation.animate)()
+        animation = task(simulation.animate)()
+        if save_animation:
+            animation.save(
+                "animation.gif",
+                writer="pillow",
+                fps=simulation.config.animation.fps,
+            )
     except KeyboardInterrupt:
         get_run_logger().info("Simulation interrupted by Ctrl+C")
     return task(simulation.get_stats)()

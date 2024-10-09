@@ -101,7 +101,7 @@ class Simulation(BaseModel):
             "current_time": self.current_time,
         }
 
-    def animate(self):
+    def animate(self) -> animation.FuncAnimation:
         fig, ax = plt.subplots(figsize=self.config.animation.figsize)
         plot_elements = self._initialize_plot_elements(ax)
 
@@ -122,7 +122,7 @@ class Simulation(BaseModel):
             self._update_plot_elements(plot_elements, ax)
             return self._get_artists(plot_elements)
 
-        ani = animation.FuncAnimation(  # noqa: F841
+        ani = animation.FuncAnimation(
             fig,
             update,
             frames=int(
@@ -133,8 +133,11 @@ class Simulation(BaseModel):
             blit=False,
             repeat=False,
         )
+
         plt.tight_layout()
         plt.show()
+
+        return ani
 
     def _initialize_plot_elements(self, ax):
         elements = {
